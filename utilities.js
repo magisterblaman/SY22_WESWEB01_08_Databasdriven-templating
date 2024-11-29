@@ -17,3 +17,13 @@ export function getRequestBody(request) {
 		});
 	});
 }
+
+export function cleanupHTMLOutput(input) {
+	input = input.replaceAll('&', '&amp;');
+	input = input.replaceAll('<', '&lt;');
+	input = input.replaceAll('>', '&gt;');
+	input = input.replaceAll('"', '&quot;');
+	input = input.replaceAll('\'', '&#39;');
+
+	return input;
+}

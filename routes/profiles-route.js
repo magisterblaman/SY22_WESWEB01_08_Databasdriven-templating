@@ -1,5 +1,5 @@
 import http from 'http';
-import { getRequestBody } from '../utilities.js';
+import { cleanupHTMLOutput, getRequestBody } from '../utilities.js';
 import { dbo } from '../index.js';
 import { ObjectId } from 'mongodb';
 import fs from 'fs/promises';
@@ -13,34 +13,58 @@ import fs from 'fs/promises';
 export async function handleProfilesRoute(pathSegments, request, response) {
 	let nextSegment = pathSegments.shift();
 	if (!nextSegment) {
-		if (request.method !== 'POST') {
-			response.writeHead(405, { 'Content-Type': 'text/plain' });
-			response.write('405 Method Not Allowed');
+		if (request.method === 'POST') {
+			let body = await getRequestBody(request);
+
+			let params = new URLSearchParams(body);
+
+			if (!params.get('profileName') || !params.get('profileEmail')
+				|| params.get('profileAge') < 13 || params.get('profileAge') > 99) {
+
+				response.writeHead(400, { 'Content-Type': 'text/plain' });
+				response.write('400 Bad Request');
+				response.end();
+				return;
+			}
+
+			let result = await dbo.collection('profiles').insertOne({
+				'name': params.get('profileName'),
+				'email': params.get('profileEmail'),
+				'age': params.get('profileAge')
+			});
+
+			response.writeHead(303, { 'Location': '/profiles/' + result.insertedId });
 			response.end();
 			return;
 		}
 
-		let body = await getRequestBody(request);
+		if (request.method === 'GET') {
+			let documents = await dbo.collection('profiles').find({}).toArray();
 
-		let params = new URLSearchParams(body);
+			let profilesString = '';
 
-		if (!params.get('profileName') || !params.get('profileEmail')
-			|| params.get('profileAge') < 13 || params.get('profileAge') > 99) {
+			for (let i = 0; i < documents.length; i++) {
+				profilesString +=
+					'<li><a href="/profiles/'
+					+ cleanupHTMLOutput(documents[i]._id)
+					+ '">'
+					+ cleanupHTMLOutput(documents[i].name)
+					+ ' ('
+					+ cleanupHTMLOutput(documents[i].age)
+					+ ')</a></li>';
+			}
+			let template = (await fs.readFile('templates/profiles-list.volvo')).toString();
 
-			response.writeHead(400, { 'Content-Type': 'text/plain' });
-			response.write('400 Bad Request');
+			template = template.replaceAll('%{profilesList}%', profilesString);
+
+			response.writeHead(200, { 'Content-Type': 'text/html;charset=UTF-8' });
+			response.write(template);
 			response.end();
 			return;
 		}
 
-		await dbo.collection('profiles').insertOne({
-			'name': params.get('profileName'),
-			'email': params.get('profileEmail'),
-			'age': params.get('profileAge')
-		});
-
-		response.writeHead(201, { 'Content-Type': 'text/plain' });
-		response.write('201 Created');
+		response.writeHead(405, { 'Content-Type': 'text/plain' });
+		response.write('405 Method Not Allowed');
 		response.end();
 		return;
 	}
@@ -74,9 +98,9 @@ export async function handleProfilesRoute(pathSegments, request, response) {
 
 	let template = (await fs.readFile('templates/profile.volvo')).toString();
 
-	template = template.replaceAll('%{profileName}%', profileDocument.name);
-	template = template.replaceAll('%{profileEmail}%', profileDocument.email);
-	template = template.replaceAll('%{profileAge}%', profileDocument.age);
+	template = template.replaceAll('%{profileName}%', cleanupHTMLOutput(profileDocument.name));
+	template = template.replaceAll('%{profileEmail}%', cleanupHTMLOutput(profileDocument.email));
+	template = template.replaceAll('%{profileAge}%', cleanupHTMLOutput(profileDocument.age));
 
 	response.writeHead(200, { 'Content-Type': 'text/html;charset=UTF-8' });
 	response.write(template);
