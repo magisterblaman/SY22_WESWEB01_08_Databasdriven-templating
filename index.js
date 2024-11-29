@@ -3,9 +3,10 @@ import http from 'http';
 import { MongoClient } from 'mongodb';
 import { getRequestBody } from './utilities.js';
 import fs from 'fs/promises';
+import { handleProfilesRoute } from './routes/profiles-route.js';
 
 let dbConn = await MongoClient.connect(process.env.MONGODB_CONNECTION_STRING);
-let dbo = dbConn.db('sy22_wesweb01_databas2');
+export let dbo = dbConn.db(process.env.MONGODB_DATABASE_NAME);
 
 async function handleRequest(request, response) {
 	let url = new URL(request.url, 'http://' + request.headers.host);
@@ -38,35 +39,7 @@ async function handleRequest(request, response) {
 	}
 
 	if (nextSegment === 'profiles') {
-		if (request.method !== 'POST') {
-			response.writeHead(405, { 'Content-Type': 'text/plain' });
-			response.write('405 Method Not Allowed');
-			response.end();
-			return;
-		}
-
-		let body = await getRequestBody(request);
-
-		let params = new URLSearchParams(body);
-
-		if (!params.get('profileName') || !params.get('profileEmail')
-			|| params.get('profileAge') < 13 || params.get('profileAge') > 99) {
-
-			response.writeHead(400, { 'Content-Type': 'text/plain' });
-			response.write('400 Bad Request');
-			response.end();
-			return;
-		}
-
-		await dbo.collection('profiles').insertOne({
-			'name': params.get('profileName'),
-			'email': params.get('profileEmail'),
-			'age': params.get('profileAge')
-		});
-
-		response.writeHead(201, { 'Content-Type': 'text/plain' });
-		response.write('201 Created');
-		response.end();
+		await handleProfilesRoute(pathSegments, request, response);
 		return;
 	}
 }
