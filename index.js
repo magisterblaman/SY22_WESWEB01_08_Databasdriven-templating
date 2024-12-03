@@ -19,7 +19,6 @@ async function handleRequest(request, response) {
 		}
 	});
 
-
 	let nextSegment = pathSegments.shift();
 
 	if (nextSegment === 'create-user') {
@@ -39,7 +38,7 @@ async function handleRequest(request, response) {
 	}
 
 	if (nextSegment === 'profiles') {
-		await handleProfilesRoute(pathSegments, request, response);
+		await handleProfilesRoute(pathSegments, url, request, response);
 		return;
 	}
 }

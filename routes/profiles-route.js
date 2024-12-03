@@ -10,7 +10,7 @@ import fs from 'fs/promises';
  * @param {http.IncomingMessage} request 
  * @param {http.ServerResponse} response 
  */
-export async function handleProfilesRoute(pathSegments, request, response) {
+export async function handleProfilesRoute(pathSegments, url, request, response) {
 	let nextSegment = pathSegments.shift();
 	if (!nextSegment) {
 		if (request.method === 'POST') {
@@ -39,14 +39,25 @@ export async function handleProfilesRoute(pathSegments, request, response) {
 		}
 
 		if (request.method === 'GET') {
-			let documents = await dbo.collection('profiles').find({}).toArray();
+			let filter = {};
+
+			if (url.searchParams.has('age')) {
+				filter.age = url.searchParams.get('age');
+			}
+			if (url.searchParams.has('name')) {
+				filter.name = url.searchParams.get('name');
+			}
+
+			console.log(filter);
+
+			let documents = await dbo.collection('profiles').find(filter).toArray();
 
 			let profilesString = '';
 
 			for (let i = 0; i < documents.length; i++) {
 				profilesString +=
 					'<li><a href="/profiles/'
-					+ cleanupHTMLOutput(documents[i]._id)
+					+ cleanupHTMLOutput(documents[i]._id.toString())
 					+ '">'
 					+ cleanupHTMLOutput(documents[i].name)
 					+ ' ('
